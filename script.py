@@ -16,6 +16,15 @@ INHALE_DURATION = 4.0 # seconds to spend inhaling. can be a decimal
 EXHALE_DURATION = 8.0 # seconds to spend exhaling. can be a decimal
 STALL_DURATION = 0.1 # seconds to spend stalling. can be a decimal. the "stall" time is what happens when we're waiting to see if we should inhale/exhale again. should be relatively low, but not too low. too low results in inefficiencies. 0.1 is a good number.
 
+STATE_ON_IDLE = 0
+STATE_OFF_EXHALE = 1
+STATE_ON_INHALE = 2
+
+state = STATE_ON_IDLE
+
+current_state_time = time.time()
+
+
 base_options = python.BaseOptions(model_asset_path="pose_landmarker.task")
 options = vision.PoseLandmarkerOptions(
     base_options=base_options,
@@ -31,18 +40,9 @@ frame_id = 0
 GPIO.setmode(GPIO.BCM)
 
 GPIO.setup(OUTPUT_PIN, GPIO.OUT)
-GPIO.setup(10, GPIO.OUT)
-GPIO.setup(22, GPIO.OUT)
 
 GPIO.output(OUTPUT_PIN, GPIO.LOW)
 
-def breathe():
-    while True:
-        GPIO.output(22, GPIO.LOW)
-        GPIO.output(10, GPIO.LOW)
-
-t = threading.Thread(target=breathe)
-t.start()
 
 def get_vid():
     frame = freenect.sync_get_video()[0]
@@ -66,7 +66,7 @@ def compute_angle(a, b, c):
 mp_pose = mp.solutions.pose
 try:
     while True:
-        GPIO.output(OUTPUT_PIN, GPIO.LOW)
+
         rgb = get_vid()
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         result = detector.detect_for_video(mp_image, frame_id)
@@ -74,50 +74,56 @@ try:
         #rgb = get_vid()
         #depth = get_depth()
         #results = pose.process(cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB))
-        if result.pose_landmarks:
-            
-            for person_id, pose in enumerate(result.pose_landmarks):
-                h, w, _ = rgb.shape
-                # lm = results.pose_landmarks.landmark
-                def get_point(idx):
-                    return (
-                            pose[idx].x * w,
-                            pose[idx].y * h
-                            )
+        if state == STATE_ON_IDLE:
+            GPIO.output(OUTPUT_PIN, GPIO.LOW)
 
-                LEFT_HIP = mp_pose.PoseLandmark.LEFT_HIP.value
-                LEFT_KNEE = mp_pose.PoseLandmark.LEFT_KNEE.value
-                LEFT_ANKLE = mp_pose.PoseLandmark.LEFT_ANKLE.value
-
-                RIGHT_HIP = mp_pose.PoseLandmark.RIGHT_HIP.value
-                RIGHT_KNEE = mp_pose.PoseLandmark.RIGHT_KNEE.value
-                RIGHT_ANKLE = mp_pose.PoseLandmark.RIGHT_ANKLE.value
-
-                left_angle = compute_angle(
-                    get_point(LEFT_HIP),
-                    get_point(LEFT_KNEE),
-                    get_point(LEFT_ANKLE)
+            if result.pose_landmarks:
                 
-                )
+                for person_id, pose in enumerate(result.pose_landmarks):
+                    h, w, _ = rgb.shape
+                    # lm = results.pose_landmarks.landmark
+                    def get_point(idx):
+                        return (
+                                pose[idx].x * w,
+                                pose[idx].y * h
+                                )
 
-                right_angle = compute_angle(
-                    get_point(RIGHT_HIP),
-                    get_point(RIGHT_KNEE),
-                    get_point(RIGHT_ANKLE)
-                )
+                    LEFT_HIP = mp_pose.PoseLandmark.LEFT_HIP.value
+                    LEFT_KNEE = mp_pose.PoseLandmark.LEFT_KNEE.value
+                    LEFT_ANKLE = mp_pose.PoseLandmark.LEFT_ANKLE.value
 
-                if (left_angle < KNEE_ANGLE_THRESHOLD or right_angle < KNEE_ANGLE_THRESHOLD):
+                    RIGHT_HIP = mp_pose.PoseLandmark.RIGHT_HIP.value
+                    RIGHT_KNEE = mp_pose.PoseLandmark.RIGHT_KNEE.value
+                    RIGHT_ANKLE = mp_pose.PoseLandmark.RIGHT_ANKLE.value
+
+                    left_angle = compute_angle(
+                        get_point(LEFT_HIP),
+                        get_point(LEFT_KNEE),
+                        get_point(LEFT_ANKLE)
                     
-                    GPIO.output(OUTPUT_PIN, GPIO.HIGH)
-            
-                    time.sleep(EXHALE_DURATION)
+                    )
 
-                    GPIO.output(OUTPUT_PIN, GPIO.LOW)
+                    right_angle = compute_angle(
+                        get_point(RIGHT_HIP),
+                        get_point(RIGHT_KNEE),
+                        get_point(RIGHT_ANKLE)
+                    )
 
-                    time.sleep(INHALE_DURATION)
-            
+                    if (left_angle < KNEE_ANGLE_THRESHOLD or right_angle < KNEE_ANGLE_THRESHOLD):
+                        state = STATE_OFF_EXHALE
+                        current_state_time = time.time()
+
+        elif state == STATE_OFF_EXHALE:
+            GPIO.output(OUTPUT_PIN, GPIO.HIGH)
+            if time.time() - current_state_time >= EXHALE_DURATION:
+                state = STATE_ON_INHALE
+                current_state_time = time.time()
+        elif state == STATE_ON_INHALE:
+            GPIO.output(OUTPUT_PIN, GPIO.LOW)
+            if time.time() - current_state_time >= INHALE_DURATION:
+                state = STATE_ON_IDLE
+                current_state_time = time.time()
         else:
-            print("NO POSE")
-        
+            state = STATE_ON_IDLE
 finally:
     GPIO.cleanup()
