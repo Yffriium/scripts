@@ -115,8 +115,8 @@ mp_pose = mp.solutions.pose
 try:
     while True:
         GPIO.output(OUTPUT_PIN, GPIO.LOW)
-        GPIO.output(22, GPIO.LOW)
-        GPIO.output(10, GPIO.LOW)
+        GPIO.output(22, GPIO.HIGH)
+        GPIO.output(10, GPIO.HIGH)
         rgb = get_vid()
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         result = detector.detect_for_video(mp_image, frame_id)
@@ -162,10 +162,14 @@ try:
                 if (left_angle < KNEE_ANGLE_THRESHOLD or right_angle < KNEE_ANGLE_THRESHOLD):
                     
                     GPIO.output(OUTPUT_PIN, GPIO.HIGH)
+                    GPIO.output(22, GPIO.HIGH)
+                    GPIO.output(10, GPIO.HIGH)
             
                     time.sleep(EXHALE_DURATION)
 
                     GPIO.output(OUTPUT_PIN, GPIO.LOW)
+                    GPIO.output(22, GPIO.HIGH)
+                    GPIO.output(10, GPIO.HIGH)
 
                     time.sleep(INHALE_DURATION)
 
