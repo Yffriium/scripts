@@ -12,8 +12,8 @@ from mediapipe.tasks.python import vision
 MAX_NUM_PEOPLE = 5 # max number of people to track. 5 is kinda excessive, would go 1<=x<=5
 OUTPUT_PIN = 27 # leave this at 27. determines GPIO output pin on the raspberry pi
 KNEE_ANGLE_THRESHOLD = 160 # angle threshold to tamper with. standing straight upright is 180. knee half bent is 90. so do like in range 100 to 170.
-INHALE_DURATION = 3.0 # seconds to spend inhaling. can be a decimal
-EXHALE_DURATION = 6.0 # seconds to spend exhaling. can be a decimal
+INHALE_DURATION = 4.0 # seconds to spend inhaling. can be a decimal
+EXHALE_DURATION = 8.0 # seconds to spend exhaling. can be a decimal
 STALL_DURATION = 0.1 # seconds to spend stalling. can be a decimal. the "stall" time is what happens when we're waiting to see if we should inhale/exhale again. should be relatively low, but not too low. too low results in inefficiencies. 0.1 is a good number.
 
 
@@ -53,7 +53,7 @@ frame_id = 0
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(OUTPUT_PIN, GPIO.OUT)
 
-GPIO.output(OUTPUT_PIN, GPIO.HIGH)
+GPIO.output(OUTPUT_PIN, GPIO.LOW)
 
 # def breathe():
 #     global is_breathing
@@ -157,11 +157,11 @@ try:
                 )
 
                 if (left_angle < KNEE_ANGLE_THRESHOLD or right_angle < KNEE_ANGLE_THRESHOLD):
-                    GPIO.output(OUTPUT_PIN, GPIO.LOW)
-                    time.sleep(EXHALE_DURATION)
                     GPIO.output(OUTPUT_PIN, GPIO.HIGH)
-                    time.sleep(INHALE_DURATION)
+                    time.sleep(EXHALE_DURATION)
                     GPIO.output(OUTPUT_PIN, GPIO.LOW)
+                    time.sleep(INHALE_DURATION)
+                    GPIO.output(OUTPUT_PIN, GPIO.HIGH)
 
 
                     # turn_on_pin = True
