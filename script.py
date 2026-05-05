@@ -115,6 +115,8 @@ mp_pose = mp.solutions.pose
 try:
     while True:
         GPIO.output(OUTPUT_PIN, GPIO.LOW)
+        GPIO.output(22, GPIO.LOW)
+        GPIO.output(10, GPIO.LOW)
         rgb = get_vid()
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         result = detector.detect_for_video(mp_image, frame_id)
