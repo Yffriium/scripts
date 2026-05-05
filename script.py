@@ -114,6 +114,7 @@ def compute_angle(a, b, c):
 mp_pose = mp.solutions.pose
 try:
     while True:
+        GPIO.output(OUTPUT_PIN, GPIO.LOW)
         rgb = get_vid()
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         result = detector.detect_for_video(mp_image, frame_id)
@@ -157,12 +158,14 @@ try:
                 )
 
                 if (left_angle < KNEE_ANGLE_THRESHOLD or right_angle < KNEE_ANGLE_THRESHOLD):
+                    
                     GPIO.output(OUTPUT_PIN, GPIO.HIGH)
+            
                     time.sleep(EXHALE_DURATION)
-                    GPIO.output(OUTPUT_PIN, GPIO.LOW)
-                    time.sleep(INHALE_DURATION)
-                    GPIO.output(OUTPUT_PIN, GPIO.HIGH)
 
+                    GPIO.output(OUTPUT_PIN, GPIO.LOW)
+
+                    time.sleep(INHALE_DURATION)
 
                     # turn_on_pin = True
                     # print(f"P{person_id} enables")
